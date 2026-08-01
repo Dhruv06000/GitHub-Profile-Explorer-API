@@ -4,7 +4,7 @@ A REST API built with **FastAPI** that fetches and analyzes GitHub user data usi
 
 This project is a refactored version of my original **GitHub Profile Explorer** CLI application. The application has been redesigned using a layered architecture where API routes, business logic, and response models are separated into dedicated modules for better maintainability.
 
-The API retrieves a GitHub user's public profile information, fetches all of their public repositories using automatic pagination, calculates repository statistics, and returns a clean, structured JSON response.
+The API retrieves a GitHub user's public profile information, fetches all of their public repositories using automatic pagination, calculates repository statistics, and exposes clean, structured JSON responses through RESTful endpoints.
 
 ---
 
@@ -14,13 +14,14 @@ The API retrieves a GitHub user's public profile information, fetches all of the
 - Fetch GitHub user profile information
 - Fetch all public repositories
 - Automatic GitHub API pagination
-- Calculate repository statistics:
+- Repository statistics calculation:
   - Total stars across all repositories
   - Languages used
   - Most used programming language
 
+- Dedicated repository listing endpoint
 - Clean JSON responses using Pydantic Response Models
-- Automatic response filtering with `response_model`
+- Automatic response validation and filtering with `response_model`
 - Layered project architecture
 - Error handling for:
   - GitHub HTTP errors
@@ -51,11 +52,33 @@ github-profile-api/
 └── .gitignore
 ```
 
+---
+
+# Architecture
+
+```text
+Client
+   │
+   ▼
+FastAPI Routes (main.py)
+   │
+   ▼
+Service Layer (github_service.py)
+   │
+   ▼
+GitHub REST API
+```
+
+---
+
 ### `main.py`
 
 - Defines all FastAPI routes
 - Handles incoming HTTP requests
+- Calls the service layer
 - Converts Python exceptions into FastAPI `HTTPException` responses
+
+---
 
 ### `github_service.py`
 
@@ -67,6 +90,9 @@ Responsibilities include:
 - Fetching public repositories
 - Handling GitHub API pagination
 - Calculating repository statistics
+- Transforming GitHub responses into API response models
+
+---
 
 ### `models.py`
 
@@ -76,15 +102,10 @@ Current models:
 
 - `ProfileResponse`
 - `StatisticsResponse`
+- `RepositoryResponse`
 - `GitHubUserDashboardResponse`
 
-The `/profile/{username}` endpoint uses:
-
-```python
-response_model = GitHubUserDashboardResponse
-```
-
-This ensures that only selected fields are exposed in the API response.
+The API uses Pydantic Response Models to validate responses, expose only selected fields, and automatically generate OpenAPI documentation.
 
 ---
 
@@ -156,9 +177,9 @@ http://127.0.0.1:8000
 
 FastAPI automatically generates interactive API documentation.
 
-### Swagger UI
+## Swagger UI
 
-Open the following URL after starting the server:
+Open:
 
 ```text
 http://127.0.0.1:8000/docs
@@ -170,7 +191,7 @@ Swagger UI allows you to:
 - Explore request and response models
 - Test API endpoints directly from your browser
 
-### ReDoc
+## ReDoc
 
 Open:
 
@@ -178,7 +199,7 @@ Open:
 http://127.0.0.1:8000/redoc
 ```
 
-ReDoc provides a clean, read-only documentation interface for your API.
+ReDoc provides a clean, read-only documentation interface.
 
 ---
 
@@ -212,7 +233,20 @@ This endpoint:
 
 ---
 
-## Pagination
+## GET /profile/{username}/repositories
+
+Returns all public repositories for the specified GitHub user.
+
+This endpoint:
+
+- Retrieves every public repository
+- Automatically handles GitHub API pagination
+- Returns only selected repository fields
+- Excludes unnecessary GitHub API fields using `RepositoryResponse`
+
+---
+
+# Pagination
 
 The GitHub REST API returns a maximum of **100 repositories per request**.
 
@@ -222,16 +256,22 @@ This application automatically requests additional pages until all public reposi
 
 # Example Requests
 
-### Home Endpoint
+## Home Endpoint
 
 ```http
 GET /
 ```
 
-### Profile Endpoint
+## Profile Endpoint
 
 ```http
 GET /profile/octocat
+```
+
+## Repository Endpoint
+
+```http
+GET /profile/octocat/repositories
 ```
 
 ---
@@ -279,6 +319,28 @@ GET /profile/octocat
 
 ---
 
+## Repository Endpoint
+
+```json
+[
+  {
+    "name": "Hello-World",
+    "description": "My first repository",
+    "html_url": "https://github.com/octocat/Hello-World",
+    "language": "Python",
+    "visibility": "public",
+    "stargazers_count": 80,
+    "forks_count": 9,
+    "open_issues_count": 2,
+    "updated_at": "2025-07-29T10:15:20Z",
+    "pushed_at": "2025-07-30T18:42:11Z",
+    "license": "MIT License"
+  }
+]
+```
+
+---
+
 # Response Models
 
 The API uses Pydantic Response Models to expose only the required data.
@@ -287,24 +349,22 @@ Current response models:
 
 - `ProfileResponse`
 - `StatisticsResponse`
+- `RepositoryResponse`
 - `GitHubUserDashboardResponse`
 
-The profile response intentionally exposes only:
+The profile endpoint returns:
 
-- `login`
-- `name`
-- `avatar_url`
-- `bio`
-- `company`
-- `location`
-- `blog`
-- `followers`
-- `following`
-- `public_repos`
-- `html_url`
-- `created_at`
+```python
+GitHubUserDashboardResponse
+```
 
-This prevents unnecessary fields returned by the GitHub API from being included in the final response.
+The repository endpoint returns:
+
+```python
+list[RepositoryResponse]
+```
+
+Each repository exposes only the fields required by API consumers instead of the complete GitHub repository payload. This creates a stable API contract while preventing unnecessary GitHub fields from being exposed.
 
 ---
 
@@ -325,10 +385,11 @@ This provides clear and consistent error responses to API clients.
 
 Planned enhancements include:
 
-- Repository endpoint
 - Query parameter filtering
-- Sorting
+- Repository sorting
+- API pagination
 - Logging
+- Configuration management
 - Docker support
 - Automated testing
 - Deployment

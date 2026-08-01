@@ -25,3 +25,19 @@ class StatisticsResponse(BaseModel):
 class GitHubUserDashboardResponse(BaseModel):
    profile : ProfileResponse
    statistics : StatisticsResponse
+
+# class LicenseName(BaseModel):
+#    name : str
+
+class RepositoryResponse(BaseModel):
+   name : str
+   description : str | None = None
+   html_url : str
+   language : str | None = None
+   visibility : str
+   stargazers_count : int
+   forks_count : int
+   open_issues_count : int
+   updated_at : datetime
+   pushed_at : datetime
+   license : str | None = None

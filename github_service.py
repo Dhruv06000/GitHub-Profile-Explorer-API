@@ -1,5 +1,5 @@
 import requests
-
+from models import RepositoryResponse
 
 
 def fetch_github_user_profile_info(user_name):
@@ -33,6 +33,31 @@ def fetch_user_repositories(user_name):
     page += 1
 
   return all_repo
+
+def get_user_repositories(user_name: str) -> list[RepositoryResponse]:
+  repositories = fetch_user_repositories(user_name)
+  # return [RepositoryResponse(**repo) for repo in repositories]
+  result = []
+  for repo in repositories:
+    license_name = repo["license"]["name"] if repo["license"] else None
+
+    result.append(RepositoryResponse(
+      name = repo["name"],
+      description = repo["description"],
+      html_url = repo["html_url"],
+      language = repo["language"],
+      visibility = repo["visibility"],
+      stargazers_count = repo["stargazers_count"],
+      forks_count = repo["forks_count"],
+      open_issues_count = repo["open_issues_count"],
+      updated_at = repo["updated_at"],
+      pushed_at = repo["pushed_at"],
+      license = license_name
+    ))
+  return result
+
+  
+  
   
 def calculate_statistics(repositories):
   
@@ -48,38 +73,3 @@ def calculate_statistics(repositories):
     )
   return  total_stars, language_used, most_used_language
   
-  
-# def main():
-  
-#   try:
-#     user_name = input("Enter Github username: ")
-#     print("\n========================\nPROFILE\n========================\n")
-
-#     profile = fetch_github_user_profile_info(user_name)
-#     print(f'Username : {profile["login"]}\nName : {profile["name"]}\nFollowers: {profile["followers"]}\nRepos    : {profile["public_repos"]}\nEmail : {profile["email"] or "Not Public"}\n')
-
-#     repositories = fetch_user_repositories(user_name)
-#     # print("\n========================\nREPOSITORIES\n========================\n")
-#     # for index, repo in enumerate(repositories, start= 1):
-#     #   print(f'{index}. {repo["name"]}\n    Language : {repo["language"] or "Not Specified"}\n    Stars : {repo["stargazers_count"]}\n')
-
-#     total_stars, language_used, most_used_language = calculate_statistics(repositories)
-#     print("\n========================\nSTATISTICS\n========================\n")
-#     print(f'Total Repositories : {len(repositories)}\n\nTotal Stars : {total_stars}\n\nMost Used Language: {most_used_language}\n\nLanguage Used\n')
-#     for language, count in language_used.items():
-#       print(f'{language} : {count}')
-
-#   except requests.exceptions.Timeout:
-#       # Request took too long
-#       print("❌ The request timed out. Please check your internet connection or try again later.")
-
-#   except requests.exceptions.RequestException as e:
-#       # Other request-related problems
-#       print(f"❌ Failed to communicate with the GitHub API: {e}")
-
-#   except Exception as e:
-#       # Programming errors or anything unexpected
-#       print(f"❌ An unexpected error occurred: {e}")
-
-# if __name__ == "__main__":
-#   main()
