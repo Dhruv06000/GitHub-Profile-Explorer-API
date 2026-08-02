@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, status
 
 import requests
 
+
 from github_service import (
     calculate_statistics,
     fetch_github_user_profile_info,
@@ -47,9 +48,9 @@ def get_profile(user_name: str) -> GitHubUserDashboardResponse:
         )
 
 @app.get("/profile/{user_name}/repositories",status_code = status.HTTP_200_OK,response_model = list[RepositoryResponse])
-def get_repositories(user_name: str) -> list[RepositoryResponse]:
+def get_repositories(user_name: str,language : str | None = None, visibility: str | None = None) -> list[RepositoryResponse]:
    try:
-      repositories = get_user_repositories(user_name)
+      repositories = get_user_repositories(user_name, language , visibility)
       return repositories
    except requests.exceptions.HTTPError as err:
       status_code = err.response.status_code

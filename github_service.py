@@ -34,9 +34,16 @@ def fetch_user_repositories(user_name):
 
   return all_repo
 
-def get_user_repositories(user_name: str) -> list[RepositoryResponse]:
+def get_user_repositories(user_name: str, language : str | None = None, visibility : str | None = None) -> list[RepositoryResponse]:
   repositories = fetch_user_repositories(user_name)
-  # return [RepositoryResponse(**repo) for repo in repositories]
+  visibility = visibility.strip().lower() if visibility else None
+  language =  language.strip().lower() if language else None
+
+  if visibility:
+    repositories = [repo for repo in repositories if repo["visibility"].lower() == visibility]
+  if language:
+    repositories = [repo  for repo in repositories if repo["language"] and repo["language"].lower() == language]
+  
   result = []
   for repo in repositories:
     license_name = repo["license"]["name"] if repo["license"] else None

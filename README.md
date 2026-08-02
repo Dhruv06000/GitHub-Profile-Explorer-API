@@ -4,7 +4,7 @@ A REST API built with **FastAPI** that fetches and analyzes GitHub user data usi
 
 This project is a refactored version of my original **GitHub Profile Explorer** CLI application. The application has been redesigned using a layered architecture where API routes, business logic, and response models are separated into dedicated modules for better maintainability.
 
-The API retrieves a GitHub user's public profile information, fetches all of their public repositories using automatic pagination, calculates repository statistics, and exposes clean, structured JSON responses through RESTful endpoints.
+The API retrieves a GitHub user's public profile information, fetches all of their public repositories using automatic pagination, supports repository filtering using query parameters, calculates repository statistics, and exposes clean, structured JSON responses through RESTful endpoints.
 
 ---
 
@@ -14,14 +14,17 @@ The API retrieves a GitHub user's public profile information, fetches all of the
 - Fetch GitHub user profile information
 - Fetch all public repositories
 - Automatic GitHub API pagination
-- Repository statistics calculation:
+- Repository statistics calculation
   - Total stars across all repositories
   - Languages used
   - Most used programming language
-
 - Dedicated repository listing endpoint
-- Clean JSON responses using Pydantic Response Models
-- Automatic response validation and filtering with `response_model`
+- Filter repositories by programming language
+- Filter repositories by visibility
+- Support multiple query parameter filters
+- Case-insensitive repository filtering
+- Clean API responses using Pydantic Response Models
+- Automatic response validation using `response_model`
 - Layered project architecture
 - Error handling for:
   - GitHub HTTP errors
@@ -69,18 +72,19 @@ Service Layer (github_service.py)
 GitHub REST API
 ```
 
----
+### main.py
 
-### `main.py`
+Responsibilities:
 
 - Defines all FastAPI routes
 - Handles incoming HTTP requests
+- Validates input using FastAPI
 - Calls the service layer
 - Converts Python exceptions into FastAPI `HTTPException` responses
 
 ---
 
-### `github_service.py`
+### github_service.py
 
 Contains the application's business logic.
 
@@ -90,11 +94,15 @@ Responsibilities include:
 - Fetching public repositories
 - Handling GitHub API pagination
 - Calculating repository statistics
+- Repository filtering by language
+- Repository filtering by visibility
 - Transforming GitHub responses into API response models
+
+Business logic remains inside the service layer, keeping the API routes clean and focused on request handling.
 
 ---
 
-### `models.py`
+### models.py
 
 Contains the Pydantic response models used by the API.
 
@@ -106,8 +114,6 @@ Current models:
 - `GitHubUserDashboardResponse`
 
 The API uses Pydantic Response Models to validate responses, expose only selected fields, and automatically generate OpenAPI documentation.
-
----
 
 # Installation
 
@@ -221,36 +227,77 @@ Returns a welcome message.
 
 ## GET /profile/{username}
 
-Fetches a GitHub user's profile and repository statistics.
+Fetches a GitHub user's profile information along with repository statistics.
 
 This endpoint:
 
 - Fetches the GitHub user profile
 - Retrieves all public repositories
-- Automatically handles pagination
+- Automatically handles GitHub API pagination
 - Calculates repository statistics
-- Returns a structured JSON response
+- Returns a structured JSON response using `GitHubUserDashboardResponse`
 
 ---
 
 ## GET /profile/{username}/repositories
 
-Returns all public repositories for the specified GitHub user.
+Returns public repositories for the specified GitHub user.
 
-This endpoint:
+Supports optional filtering using query parameters.
 
-- Retrieves every public repository
+### Example Requests
+
+```http
+GET /profile/octocat/repositories
+```
+
+```http
+GET /profile/octocat/repositories?language=Python
+```
+
+```http
+GET /profile/octocat/repositories?visibility=public
+```
+
+```http
+GET /profile/octocat/repositories?language=Python&visibility=public
+```
+
+### Endpoint Behavior
+
+- Retrieves every public repository from GitHub
 - Automatically handles GitHub API pagination
-- Returns only selected repository fields
-- Excludes unnecessary GitHub API fields using `RepositoryResponse`
+- Supports filtering by programming language
+- Supports filtering by repository visibility
+- Applies filtering before converting data into response models
+- Returns only selected repository fields using `RepositoryResponse`
 
 ---
+
+# Query Parameters
+
+The repository endpoint supports optional query parameters for filtering results.
+
+| Parameter    | Type   | Description                                                    |
+| ------------ | ------ | -------------------------------------------------------------- |
+| `language`   | string | Filter repositories by programming language (case-insensitive) |
+| `visibility` | string | Filter repositories by repository visibility                   |
+
+Both query parameters are optional and may be combined in a single request.
+
+Example:
+
+```http
+GET /profile/octocat/repositories?language=Python&visibility=public
+```
+
+If no filters are provided, the endpoint returns all public repositories.
 
 # Pagination
 
 The GitHub REST API returns a maximum of **100 repositories per request**.
 
-This application automatically requests additional pages until all public repositories have been retrieved.
+This application automatically requests additional pages until all public repositories have been retrieved, ensuring that repository statistics and filtering are performed on the complete dataset.
 
 ---
 
@@ -272,6 +319,24 @@ GET /profile/octocat
 
 ```http
 GET /profile/octocat/repositories
+```
+
+### Filter by Programming Language
+
+```http
+GET /profile/octocat/repositories?language=Python
+```
+
+### Filter by Visibility
+
+```http
+GET /profile/octocat/repositories?visibility=public
+```
+
+### Filter by Language and Visibility
+
+```http
+GET /profile/octocat/repositories?language=Python&visibility=public
 ```
 
 ---
@@ -343,7 +408,7 @@ GET /profile/octocat/repositories
 
 # Response Models
 
-The API uses Pydantic Response Models to expose only the required data.
+The API uses **Pydantic Response Models** to expose only the required data.
 
 Current response models:
 
@@ -368,6 +433,89 @@ Each repository exposes only the fields required by API consumers instead of the
 
 ---
 
+# Service Layer Improvements
+
+The `get_user_repositories()` service function has been enhanced to support repository filtering using optional query parameters.
+
+The filtering workflow is:
+
+1. Fetch all repositories from the GitHub REST API.
+2. Normalize query parameter values using `strip().lower()`.
+3. Filter repositories by visibility (if provided).
+4. Filter repositories by programming language (if provided).
+5. Convert only the filtered repositories into `RepositoryResponse` models.
+6. Return the filtered list.
+
+This approach avoids unnecessary transformations and keeps all business logic inside the service layer.
+
+---
+
+# API Design Decisions
+
+This project follows common REST API design principles.
+
+### Path Parameters
+
+Path parameters identify resources.
+
+Examples:
+
+```text
+/profile/octocat
+
+/profile/octocat/repositories
+```
+
+### Query Parameters
+
+Query parameters filter resources rather than identify them.
+
+Examples:
+
+```text
+?language=Python
+
+?visibility=public
+
+?language=Python&visibility=public
+```
+
+### Separation of Concerns
+
+- FastAPI routes in `main.py` handle HTTP requests and input validation.
+- Business logic resides in `github_service.py`.
+- Response formatting is handled using Pydantic models.
+
+### Efficient Filtering
+
+Repository filtering is performed **before** converting GitHub responses into `RepositoryResponse` models. This avoids unnecessary object creation and improves performance.
+
+### Stable API Contract
+
+The API exposes only the fields explicitly defined in `RepositoryResponse`, ensuring a clean, consistent response format while preventing unnecessary GitHub API fields from being returned.
+
+---
+
+# Testing
+
+The following scenarios were successfully tested.
+
+### Repository Endpoint
+
+- GET `/profile/{username}/repositories`
+- GET `/profile/{username}/repositories?language=Python`
+- GET `/profile/{username}/repositories?visibility=public`
+- GET `/profile/{username}/repositories?language=Python&visibility=public`
+
+### Validation Results
+
+- Language filtering is case-insensitive (`Python`, `python`, and `PYTHON` return identical results).
+- Unknown languages return an empty list instead of an error.
+- Multiple query parameter filters work together correctly.
+- Existing functionality remains unaffected after adding filtering support.
+
+---
+
 # Error Handling
 
 The API handles several types of errors, including:
@@ -385,14 +533,17 @@ This provides clear and consistent error responses to API clients.
 
 Planned enhancements include:
 
-- Query parameter filtering
 - Repository sorting
 - API pagination
+- Additional filtering options
+- GitHub authentication using Personal Access Tokens
+- Caching GitHub API responses
 - Logging
 - Configuration management
+- Automated testing with Pytest
 - Docker support
-- Automated testing
-- Deployment
+- CI/CD with GitHub Actions
+- Deployment to Render or Railway
 
 ---
 
