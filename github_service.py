@@ -1,5 +1,10 @@
+# github_service.py code :
 import requests
 from models import RepositoryResponse
+from enums import (
+    SortOption,
+    OrderOption
+)
 
 
 def fetch_github_user_profile_info(user_name):
@@ -34,15 +39,28 @@ def fetch_user_repositories(user_name):
 
   return all_repo
 
-def get_user_repositories(user_name: str, language : str | None = None, visibility : str | None = None) -> list[RepositoryResponse]:
+def get_user_repositories(user_name: str, language : str | None = None, visibility : str | None = None, sort : SortOption | None = None , order : OrderOption | None = None) -> list[RepositoryResponse]:
   repositories = fetch_user_repositories(user_name)
   visibility = visibility.strip().lower() if visibility else None
   language =  language.strip().lower() if language else None
+
 
   if visibility:
     repositories = [repo for repo in repositories if repo["visibility"].lower() == visibility]
   if language:
     repositories = [repo  for repo in repositories if repo["language"] and repo["language"].lower() == language]
+
+  sort_mapping = {
+    SortOption.NAME: "name",
+    SortOption.STARS: "stargazers_count",
+    SortOption.FORKS: "forks_count",
+    SortOption.UPDATED: "updated_at"
+  }
+  if sort in sort_mapping:
+    sort_key = sort_mapping[sort.value]
+    repositories = sorted(repositories, key = lambda repo : repo[sort_key] , reverse = order == OrderOption.DESC)
+  
+  
   
   result = []
   for repo in repositories:

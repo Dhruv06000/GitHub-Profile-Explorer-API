@@ -1,3 +1,5 @@
+# models.py contains only Pydantic Models
+
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
