@@ -39,17 +39,27 @@ def fetch_user_repositories(user_name):
 
   return all_repo
 
-def get_user_repositories(user_name: str, language : str | None = None, visibility : str | None = None, sort : SortOption | None = None , order : OrderOption | None = None) -> list[RepositoryResponse]:
+def get_user_repositories(
+    user_name: str,
+    page : int,
+    per_page : int,
+    language : str | None = None,
+    visibility : str | None = None,
+    sort : SortOption | None = None ,
+    order : OrderOption | None = None
+    ) -> list[RepositoryResponse]:
+  # Fetch
   repositories = fetch_user_repositories(user_name)
+
+  # Filter
   visibility = visibility.strip().lower() if visibility else None
   language =  language.strip().lower() if language else None
-
-
   if visibility:
     repositories = [repo for repo in repositories if repo["visibility"].lower() == visibility]
   if language:
     repositories = [repo  for repo in repositories if repo["language"] and repo["language"].lower() == language]
 
+  # Sort
   sort_mapping = {
     SortOption.NAME: "name",
     SortOption.STARS: "stargazers_count",
@@ -59,11 +69,15 @@ def get_user_repositories(user_name: str, language : str | None = None, visibili
   if sort in sort_mapping:
     sort_key = sort_mapping[sort.value]
     repositories = sorted(repositories, key = lambda repo : repo[sort_key] , reverse = order == OrderOption.DESC)
+
+  # Pagination
+  start = (page - 1) * per_page
+  end = start + per_page
+  paginated_repositories = repositories[start:end]
   
-  
-  
+  # Transform
   result = []
-  for repo in repositories:
+  for repo in paginated_repositories:
     license_name = repo["license"]["name"] if repo["license"] else None
 
     result.append(RepositoryResponse(

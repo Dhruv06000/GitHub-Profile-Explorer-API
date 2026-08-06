@@ -10,7 +10,7 @@ This project follows a layered architecture where API routes, business logic, an
 
 - Fetch GitHub user profile information
 - Fetch all public repositories
-- Automatic GitHub API pagination
+- Repository pagination using page and per_page query parameters
 - Repository statistics
   - Total stars
   - Languages used
@@ -23,7 +23,9 @@ This project follows a layered architecture where API routes, business logic, an
   - Stars
   - Forks
   - Last Updated
-- Enum-based query parameter validation
+- FastAPI Query parameter validation
+  - Enum validation
+  - Numeric range validation (page, per_page)
 - Clean API responses using Pydantic Response Models
 - Automatic OpenAPI documentation
 - Layered architecture
@@ -85,6 +87,7 @@ GitHub REST API
 - GitHub API communication
 - Repository filtering
 - Repository sorting
+- Repository pagination
 - Statistics calculation
 - Data transformation
 
@@ -179,12 +182,14 @@ Supports filtering and sorting.
 
 ### Query Parameters
 
-| Parameter  | Description                 |
-| ---------- | --------------------------- |
-| language   | Filter by language          |
-| visibility | Filter by visibility        |
-| sort       | name, stars, forks, updated |
-| order      | asc, desc                   |
+| Parameter  | Description                           |
+| ---------- | ------------------------------------- |
+| language   | Filter by language                    |
+| page       | Page number (>=1, default: 1)         |
+| per_page   | Results per page (1-100, default: 30) |
+| visibility | Filter by visibility                  |
+| sort       | name, stars, forks, updated           |
+| order      | asc, desc                             |
 
 ### Example Requests
 
@@ -198,6 +203,14 @@ GET /profile/octocat/repositories?sort=stars
 GET /profile/octocat/repositories?sort=stars&order=desc
 
 GET /profile/octocat/repositories?language=Python&sort=forks&order=desc
+
+GET /profile/octocat/repositories?page=2
+
+GET /profile/octocat/repositories?per_page=5
+
+GET /profile/octocat/repositories?page=2&per_page=10
+
+GET /profile/octocat/repositories?language=Python&page=1&per_page=5
 ```
 
 ---
@@ -208,6 +221,7 @@ GET /profile/octocat/repositories?language=Python&sort=forks&order=desc
 - FastAPI routes handle validation and HTTP concerns.
 - Filtering is applied before sorting.
 - Sorting uses Python's stable `sorted()` function.
+- Pagination is applied after filtering and sorting to ensure consistent results.
 - Response models expose only required fields.
 - Enum validation automatically rejects invalid sort and order values with HTTP 422.
 
@@ -228,12 +242,14 @@ Successfully tested:
 - Ascending and descending order
 - Invalid enum values (HTTP 422)
 - Combined filtering and sorting
+- Pagination (page)
+- Pagination (per_page)
+- Combined filtering, sorting, and pagination
 
 ---
 
 # Future Improvements
 
-- API pagination
 - Additional filters
 - GitHub Personal Access Token support
 - Logging
