@@ -6,13 +6,45 @@ from enums import (
     OrderOption
 )
 
+class GitHubServiceError(Exception):
+    """Custom exception for GitHub service errors."""
+    def __init__(self, status_code : int , message: str):
+      self.status_code = status_code
+      self.message = message
+      # Pass the customized message back to the base Exception class
+      super().__init__(f"GitHub API Error {status_code}: {message}")
 
 def fetch_github_user_profile_info(user_name):
   # username = input("Enter Github username:")
   url = f"https://api.github.com/users/{user_name}"
-  response = requests.get(url, timeout = 5)
-  
-  response.raise_for_status()
+  try:
+    response = requests.get(url, timeout = 5)
+      
+    response.raise_for_status()
+  except requests.exceptions.HTTPError as err:
+    status_code = err.response.status_code
+
+    if status_code == 404:
+        raise GitHubServiceError(
+            404,
+            "GitHub user not found"
+        )
+
+    if 500 <= status_code <= 599:
+        raise GitHubServiceError(
+            503,
+            "GitHub service is temporarily unavailable"
+        )
+
+    raise GitHubServiceError(
+        status_code,
+        err.response.reason
+    )
+
+  except requests.exceptions.RequestException:
+    # Catch network timeouts or connection drops
+    raise GitHubServiceError(503, "GitHub service is temporarily unavailable")
+    
   data = response.json()
     
   return data
@@ -24,13 +56,39 @@ def fetch_user_repositories(user_name):
   all_repo = []
   while True:
     url = f"https://api.github.com/users/{user_name}/repos"
-    response = requests.get(url, 
-                            params={
-                              "page": page,
-                              "per_page" : 100
-                            },
-                            timeout = 5)
-    response.raise_for_status()
+    try:
+      response = requests.get(url, 
+                                  params={
+                                    "page": page,
+                                    "per_page" : 100
+                                  },
+                                  timeout = 5)
+      response.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+      status_code = err.response.status_code
+
+      if status_code == 404:
+          raise GitHubServiceError(
+              404,
+              "GitHub user not found"
+          )
+
+      if 500 <= status_code <= 599:
+          raise GitHubServiceError(
+              503,
+              "GitHub service is temporarily unavailable"
+          )
+
+      raise GitHubServiceError(
+          status_code,
+          err.response.reason
+      )
+    except requests.exceptions.RequestException:
+        # Catch network timeouts or connection drops
+        raise GitHubServiceError(
+            503, 
+            "GitHub service is temporarily unavailable"
+        )
     data = response.json()
     all_repo.extend(data)
     if len(data) < 100:

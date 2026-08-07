@@ -10,26 +10,33 @@ This project follows a layered architecture where API routes, business logic, an
 
 - Fetch GitHub user profile information
 - Fetch all public repositories
-- Repository pagination using page and per_page query parameters
+- Repository pagination using `page` and `per_page` query parameters
 - Repository statistics
   - Total stars
   - Languages used
   - Most used language
+
 - Repository filtering
   - Language (case-insensitive)
   - Visibility
+
 - Repository sorting
   - Name
   - Stars
   - Forks
   - Last Updated
+
 - FastAPI Query parameter validation
   - Enum validation
-  - Numeric range validation (page, per_page)
+  - Numeric range validation (`page`, `per_page`)
+
 - Clean API responses using Pydantic Response Models
 - Automatic OpenAPI documentation
 - Layered architecture
-- HTTP and network error handling
+- Centralized API error handling
+  - GitHub `404` → API `404`
+  - GitHub `5xx` → API `503`
+  - Network/request failures → API `503`
 
 ---
 
@@ -71,6 +78,15 @@ Service Layer
    │
    ▼
 GitHub REST API
+   │
+   ▼
+GitHubServiceError
+   │
+   ▼
+Centralized FastAPI Exception Handler
+   │
+   ▼
+HTTP Response
 ```
 
 ### Responsibilities
@@ -80,11 +96,13 @@ GitHub REST API
 - Defines API routes
 - Validates client input
 - Handles HTTP requests
+- Registers centralized exception handlers
 - Calls the service layer
 
 **github_service.py**
 
 - GitHub API communication
+- GitHub error handling and translation
 - Repository filtering
 - Repository sorting
 - Repository pagination
@@ -147,13 +165,13 @@ uvicorn main:app --reload
 
 Swagger UI
 
-```
+```text
 http://127.0.0.1:8000/docs
 ```
 
 ReDoc
 
-```
+```text
 http://127.0.0.1:8000/redoc
 ```
 
@@ -178,7 +196,7 @@ Returns:
 
 ## GET /profile/{username}/repositories
 
-Supports filtering and sorting.
+Supports filtering, sorting, ordering, and pagination.
 
 ### Query Parameters
 
@@ -219,11 +237,15 @@ GET /profile/octocat/repositories?language=Python&page=1&per_page=5
 
 - Business logic stays inside the service layer.
 - FastAPI routes handle validation and HTTP concerns.
+- GitHub-specific failures are translated into application-level `GitHubServiceError` exceptions.
+- FastAPI handles `GitHubServiceError` through one centralized exception handler.
 - Filtering is applied before sorting.
 - Sorting uses Python's stable `sorted()` function.
 - Pagination is applied after filtering and sorting to ensure consistent results.
+- Pagination happens before creating `RepositoryResponse` objects.
 - Response models expose only required fields.
 - Enum validation automatically rejects invalid sort and order values with HTTP 422.
+- Network failures are returned as HTTP 503 responses.
 
 ---
 
@@ -242,19 +264,34 @@ Successfully tested:
 - Ascending and descending order
 - Invalid enum values (HTTP 422)
 - Combined filtering and sorting
-- Pagination (page)
-- Pagination (per_page)
+- Pagination (`page`)
+- Pagination (`per_page`)
 - Combined filtering, sorting, and pagination
+- Nonexistent GitHub user (HTTP 404)
+- Centralized GitHub error handling
+- Network/service failure handling
+
+Example error response:
+
+```json
+{
+  "detail": "GitHub user not found"
+}
+```
 
 ---
 
 # Future Improvements
 
-- Additional filters
 - GitHub Personal Access Token support
+- Dependency Injection
+- Environment variables and Pydantic Settings
+- Response metadata
 - Logging
 - Caching
 - Pytest
+- Clean project structure
+- Production-quality API documentation
 - Docker
 - CI/CD
 - Deployment to Render
