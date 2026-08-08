@@ -5,6 +5,7 @@ from enums import (
     SortOption,
     OrderOption
 )
+from settings import settings
 
 class GitHubServiceError(Exception):
     """Custom exception for GitHub service errors."""
@@ -16,9 +17,11 @@ class GitHubServiceError(Exception):
 
 def fetch_github_user_profile_info(user_name):
   # username = input("Enter Github username:")
-  url = f"https://api.github.com/users/{user_name}"
+  url = f"{settings.github_api_url}/users/{user_name}"
   try:
-    response = requests.get(url, timeout = 5)
+    response = requests.get(url, 
+                            timeout = 5,
+                            headers = {"Authorization": f"Bearer {settings.github_token}"})
       
     response.raise_for_status()
   except requests.exceptions.HTTPError as err:
@@ -55,14 +58,16 @@ def fetch_user_repositories(user_name):
   page = 1
   all_repo = []
   while True:
-    url = f"https://api.github.com/users/{user_name}/repos"
+    url = f"{settings.github_api_url}/users/{user_name}/repos"
     try:
       response = requests.get(url, 
                                   params={
                                     "page": page,
                                     "per_page" : 100
                                   },
-                                  timeout = 5)
+                                  timeout = 5,
+                                  headers = {"Authorization": f"Bearer {settings.github_token}"}
+                                  )
       response.raise_for_status()
     except requests.exceptions.HTTPError as err:
       status_code = err.response.status_code

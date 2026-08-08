@@ -38,6 +38,9 @@ This project follows a layered architecture where API routes, business logic, an
   - GitHub `5xx` → API `503`
   - Network/request failures → API `503`
 
+- GitHub API authentication using a Personal Access Token (PAT)
+- Environment-based configuration using Pydantic Settings
+
 ---
 
 # Tech Stack
@@ -46,6 +49,7 @@ This project follows a layered architecture where API routes, business logic, an
 - FastAPI
 - Requests
 - Pydantic
+- Pydantic Settings
 - GitHub REST API
 
 ---
@@ -56,6 +60,7 @@ This project follows a layered architecture where API routes, business logic, an
 github-profile-api/
 ├── main.py
 ├── github_service.py
+├── settings.py
 ├── models.py
 ├── enums.py
 ├── README.md
@@ -102,6 +107,7 @@ HTTP Response
 **github_service.py**
 
 - GitHub API communication
+- GitHub API authentication using the configured PAT
 - GitHub error handling and translation
 - Repository filtering
 - Repository sorting
@@ -116,6 +122,13 @@ HTTP Response
 **enums.py**
 
 - Shared enums for validated query parameters
+
+**settings.py**
+
+- Loads application configuration from environment variables
+- Loads local development variables from `.env`
+- Provides centralized access to GitHub API configuration
+- Stores the GitHub API URL and Personal Access Token configuration
 
 ---
 
@@ -157,6 +170,19 @@ or
 
 ```bash
 uvicorn main:app --reload
+```
+
+---
+
+# Configuration
+
+The application uses Pydantic Settings for configuration management.
+
+For local development, create a `.env` file in the project root:
+
+```env
+GITHUB_TOKEN=your_github_personal_access_token
+GITHUB_API_URL=https://api.github.com
 ```
 
 ---
@@ -235,8 +261,9 @@ GET /profile/octocat/repositories?language=Python&page=1&per_page=5
 
 # Design Decisions
 
-- Business logic stays inside the service layer.
-- FastAPI routes handle validation and HTTP concerns.
+- Application configuration is centralized using Pydantic Settings.
+- GitHub credentials are stored in environment variables rather than hardcoded in source code.
+- FastAPI routes handle validation and HTTP concerns
 - GitHub-specific failures are translated into application-level `GitHubServiceError` exceptions.
 - FastAPI handles `GitHubServiceError` through one centralized exception handler.
 - Filtering is applied before sorting.
@@ -270,6 +297,8 @@ Successfully tested:
 - Nonexistent GitHub user (HTTP 404)
 - Centralized GitHub error handling
 - Network/service failure handling
+- GitHub API authentication with a valid PAT (HTTP 200)
+- Invalid GitHub PAT handling (HTTP 401)
 
 Example error response:
 
@@ -283,9 +312,7 @@ Example error response:
 
 # Future Improvements
 
-- GitHub Personal Access Token support
 - Dependency Injection
-- Environment variables and Pydantic Settings
 - Response metadata
 - Logging
 - Caching
