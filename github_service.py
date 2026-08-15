@@ -1,5 +1,5 @@
 # github_service.py code :
-import requests
+from github_client import GitHubClient, GitHubClientError
 from models import RepositoryResponse
 from enums import (
     SortOption,
@@ -15,104 +15,78 @@ class GitHubServiceError(Exception):
       # Pass the customized message back to the base Exception class
       super().__init__(f"GitHub API Error {status_code}: {message}")
 
-def fetch_github_user_profile_info(user_name):
-  # username = input("Enter Github username:")
-  url = f"{settings.github_api_url}/users/{user_name}"
+def fetch_github_user_profile_info(user_name, client: GitHubClient):
+  """Featch GitHub user profile information using the provided GitHubClient."""
   try:
-    response = requests.get(url, 
-                            timeout = 5,
-                            headers = {"Authorization": f"Bearer {settings.github_token}"})
-      
-    response.raise_for_status()
-  except requests.exceptions.HTTPError as err:
-    status_code = err.response.status_code
-
-    if status_code == 404:
-        raise GitHubServiceError(
-            404,
-            "GitHub user not found"
-        )
-
-    if 500 <= status_code <= 599:
-        raise GitHubServiceError(
-            503,
-            "GitHub service is temporarily unavailable"
-        )
-
-    raise GitHubServiceError(
-        status_code,
-        err.response.reason
-    )
-
-  except requests.exceptions.RequestException:
-    # Catch network timeouts or connection drops
-    raise GitHubServiceError(503, "GitHub service is temporarily unavailable")
-    
-  data = response.json()
-    
-  return data
+    endpoint = f"/users/{user_name}"
+    return client.request("GET", endpoint)
+  except GitHubClientError as e:
+    if e.status_code == 404:
+      raise GitHubServiceError(
+          404,
+          "GitHub user not found"
+      )
+    elif 500 <= e.status_code <= 599:
+      raise GitHubServiceError(
+          503,
+          "GitHub service is temporarily unavailable"
+      )
+    else:
+      raise GitHubServiceError(
+          e.status_code,
+          e.message
+      )
 
   
-def fetch_user_repositories(user_name):
+def fetch_user_repositories(user_name, client: GitHubClient):
 
   page = 1
   all_repo = []
   while True:
-    url = f"{settings.github_api_url}/users/{user_name}/repos"
+    
+    endpoint = f"/users/{user_name}/repos"
+    params = {
+          "per_page": 100,
+          "page": page
+      }
     try:
-      response = requests.get(url, 
-                                  params={
-                                    "page": page,
-                                    "per_page" : 100
-                                  },
-                                  timeout = 5,
-                                  headers = {"Authorization": f"Bearer {settings.github_token}"}
-                                  )
-      response.raise_for_status()
-    except requests.exceptions.HTTPError as err:
-      status_code = err.response.status_code
+      data = client.request("GET", endpoint, params=params)
+      all_repo.extend(data)
+      if len(data) < 100:
+        break
+      page += 1
 
-      if status_code == 404:
-          raise GitHubServiceError(
-              404,
-              "GitHub user not found"
-          )
-
-      if 500 <= status_code <= 599:
-          raise GitHubServiceError(
-              503,
-              "GitHub service is temporarily unavailable"
-          )
-
-      raise GitHubServiceError(
-          status_code,
-          err.response.reason
-      )
-    except requests.exceptions.RequestException:
-        # Catch network timeouts or connection drops
+    except GitHubClientError as e:
+      if e.status_code == 404:
         raise GitHubServiceError(
-            503, 
+            404,
+            "GitHub user not found"
+        )
+      elif 500 <= e.status_code <= 599:
+        raise GitHubServiceError(
+            503,
             "GitHub service is temporarily unavailable"
         )
-    data = response.json()
-    all_repo.extend(data)
-    if len(data) < 100:
-      break
-    page += 1
-
+      else:
+        raise GitHubServiceError(
+            e.status_code,
+            e.message
+        )
   return all_repo
+
 
 def get_user_repositories(
     user_name: str,
     page : int,
     per_page : int,
+    client: GitHubClient,
     language : str | None = None,
     visibility : str | None = None,
     sort : SortOption | None = None ,
     order : OrderOption | None = None
     ) -> list[RepositoryResponse]:
   # Fetch
-  repositories = fetch_user_repositories(user_name)
+  repositories = fetch_user_repositories(user_name,client)
 
   # Filter
   visibility = visibility.strip().lower() if visibility else None

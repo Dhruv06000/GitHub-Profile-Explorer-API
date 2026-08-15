@@ -10,7 +10,8 @@ This project follows a layered architecture where API routes, business logic, an
 
 - Fetch GitHub user profile information
 - Fetch all public repositories
-- Repository pagination using `page` and `per_page` query parameters
+- Repository pagination using `page` and `per_page`
+- GitHub API pagination
 - Repository statistics
   - Total stars
   - Languages used
@@ -26,20 +27,31 @@ This project follows a layered architecture where API routes, business logic, an
   - Forks
   - Last Updated
 
-- FastAPI Query parameter validation
+- Repository ordering
+  - Ascending
+  - Descending
+
+- FastAPI query parameter validation
   - Enum validation
   - Numeric range validation (`page`, `per_page`)
 
 - Clean API responses using Pydantic Response Models
 - Automatic OpenAPI documentation
 - Layered architecture
+- `GitHubClient` abstraction
+- Centralized GitHub HTTP communication
+- FastAPI Dependency Injection
 - Centralized API error handling
   - GitHub `404` → API `404`
   - GitHub `5xx` → API `503`
   - Network/request failures → API `503`
+  - Invalid GitHub PAT → API `401`
 
 - GitHub API authentication using a Personal Access Token (PAT)
 - Environment-based configuration using Pydantic Settings
+- Service-layer unit testing with Pytest
+- Fake GitHub client dependencies for isolated service testing
+- 9 service-layer tests passing
 
 ---
 
@@ -50,6 +62,7 @@ This project follows a layered architecture where API routes, business logic, an
 - Requests
 - Pydantic
 - Pydantic Settings
+- Pytest
 - GitHub REST API
 
 ---
@@ -60,10 +73,14 @@ This project follows a layered architecture where API routes, business logic, an
 github-profile-api/
 ├── main.py
 ├── github_service.py
+├── github_client.py
 ├── settings.py
 ├── models.py
 ├── enums.py
+├── tests/
+│   └── test_github_service.py
 ├── README.md
+├── PROJECT_STATE.md
 ├── requirements.txt
 └── .gitignore
 ```
@@ -74,23 +91,25 @@ github-profile-api/
 
 ```text
 Client
-   │
-   ▼
+    ↓
 FastAPI Routes
-   │
-   ▼
+    ↓
+Request Validation
+    ↓
+Dependency Injection
+    ↓
 Service Layer
-   │
-   ▼
+    ↓
+GitHubClient
+    ↓
 GitHub REST API
-   │
-   ▼
+    ↓
+GitHubClientError
+    ↓
 GitHubServiceError
-   │
-   ▼
+    ↓
 Centralized FastAPI Exception Handler
-   │
-   ▼
+    ↓
 HTTP Response
 ```
 
@@ -101,19 +120,33 @@ HTTP Response
 - Defines API routes
 - Validates client input
 - Handles HTTP requests
+- Uses FastAPI Dependency Injection
 - Registers centralized exception handlers
 - Calls the service layer
 
 **github_service.py**
 
-- GitHub API communication
-- GitHub API authentication using the configured PAT
-- GitHub error handling and translation
+- Application/business logic
+- Fetches GitHub profile data
+- Fetches repositories
 - Repository filtering
 - Repository sorting
+- Repository ordering
 - Repository pagination
+- GitHub API pagination logic
 - Statistics calculation
 - Data transformation
+- Translates `GitHubClientError` into `GitHubServiceError`
+
+**github_client.py**
+
+- Handles communication with the GitHub REST API
+- Builds GitHub API requests
+- Handles authentication headers
+- Handles request timeouts
+- Handles GitHub HTTP errors
+- Handles network/request failures
+- Raises `GitHubClientError`
 
 **models.py**
 
@@ -187,13 +220,36 @@ GITHUB_API_URL=https://api.github.com
 
 ---
 
+# Testing
+
+The project uses **Pytest** for automated testing.
+
+The service layer is tested independently from the real GitHub API by using fake GitHub client implementations.
+
+Current coverage includes:
+
+- Profile success response
+- Profile `404` handling
+- Profile `500` handling
+- Profile network-error handling
+- Repository success response
+- GitHub API pagination
+- Repository `404` handling
+- Repository `500` handling
+- Repository other-status handling
+
+Current test status:
+
+````text
+9 service-layer tests passing
+
 # API Documentation
 
 Swagger UI
 
 ```text
 http://127.0.0.1:8000/docs
-```
+````
 
 ReDoc
 
@@ -273,10 +329,15 @@ GET /profile/octocat/repositories?language=Python&page=1&per_page=5
 - Response models expose only required fields.
 - Enum validation automatically rejects invalid sort and order values with HTTP 422.
 - Network failures are returned as HTTP 503 responses.
+- External GitHub API communication is isolated inside `GitHubClient`.
+- `GitHubClientError` represents GitHub client-level failures.
+- `GitHubServiceError` represents application-level service failures.
+- FastAPI Dependency Injection provides the `GitHubClient` to API routes.
+- Dependencies can be replaced during testing to avoid real GitHub API requests.
 
 ---
 
-# Testing
+# Manual API Testing
 
 Successfully tested:
 
@@ -299,6 +360,8 @@ Successfully tested:
 - Network/service failure handling
 - GitHub API authentication with a valid PAT (HTTP 200)
 - Invalid GitHub PAT handling (HTTP 401)
+- GitHubClient integration with the service layer
+- Dependency Injection through FastAPI
 
 Example error response:
 
@@ -312,15 +375,15 @@ Example error response:
 
 # Future Improvements
 
-- Dependency Injection
 - Response metadata
 - Logging
 - Caching
-- Pytest
+- GitHubClient unit testing
+- FastAPI integration/API testing
 - Clean project structure
-- Production-quality API documentation
 - Docker
 - CI/CD
+- Production-quality API documentation
 - Deployment to Render
 
 ---
