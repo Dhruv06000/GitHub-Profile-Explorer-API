@@ -1,190 +1,92 @@
 # GitHub Profile Explorer API
 
-A REST API built with **FastAPI** that fetches and analyzes GitHub user data using the **GitHub REST API**.
+A REST API built with **FastAPI** that fetches and analyzes GitHub user and repository data using the GitHub REST API.
 
-This project follows a layered architecture where API routes, business logic, and response models are separated for better readability, maintainability, and scalability.
+## Overview
 
----
+GitHub Profile Explorer API retrieves a GitHub user's profile and public repositories, then computes repository statistics (total stars, languages used, most-used language). Repositories can be filtered by language and visibility, sorted by multiple fields, and paginated.
 
-# Features
+## Tech Stack
 
-- Fetch GitHub user profile information
-- Fetch all public repositories
-- Repository pagination using `page` and `per_page`
-- GitHub API pagination
-- Repository statistics
-  - Total stars
-  - Languages used
-  - Most used language
+| Technology        | Purpose                                  |
+| ----------------- | ---------------------------------------- |
+| Python            | Core language                            |
+| FastAPI           | Web framework / routing                  |
+| Requests          | HTTP client for GitHub API communication |
+| Pydantic          | Request/response data models             |
+| Pydantic Settings | Environment-based configuration          |
+| Pytest            | Automated testing                        |
+| unittest.mock     | Mocking HTTP requests in tests           |
+| GitHub REST API   | External data source                     |
 
-- Repository filtering
-  - Language (case-insensitive)
-  - Visibility
+## Architecture
 
-- Repository sorting
-  - Name
-  - Stars
-  - Forks
-  - Last Updated
+```
+Client
+  ↓
+FastAPI Route
+  ↓
+Request Validation
+  ↓
+Dependency Injection
+  ↓
+Service Layer
+  ↓
+GitHubClient
+  ↓
+GitHub REST API
+```
 
-- Repository ordering
-  - Ascending
-  - Descending
+**File responsibilities:**
 
-- FastAPI query parameter validation
-  - Enum validation
-  - Numeric range validation (`page`, `per_page`)
+- **`main.py`** — Defines the FastAPI app, routes, and a centralized exception handler for `GitHubServiceError`. Wires up dependency injection for `GitHubClient`.
+- **`github_service.py`** — Business logic: fetches profile/repository data via `GitHubClient`, handles GitHub API pagination, filters, sorts, applies application-level pagination, computes statistics, transforms raw data into response models, and translates `GitHubClientError` into `GitHubServiceError`.
+- **`github_client.py`** — Thin wrapper around `requests` for talking to the GitHub REST API. Handles auth headers, timeouts, HTTP errors, and network errors, raising `GitHubClientError`.
+- **`models.py`** — Pydantic models: `ProfileResponse`, `StatisticsResponse`, `GitHubUserDashboardResponse`, `RepositoryResponse`.
+- **`enums.py`** — `SortOption` (name, stars, forks, updated) and `OrderOption` (asc, desc) enums used for repository sorting.
+- **`settings.py`** — Loads configuration (`github_token`, `github_api_url`) from environment variables via Pydantic Settings.
 
-- Clean API responses using Pydantic Response Models
-- Automatic OpenAPI documentation
-- Layered architecture
-- `GitHubClient` abstraction
-- Centralized GitHub HTTP communication
-- FastAPI Dependency Injection
-- Centralized API error handling
-  - GitHub `404` → API `404`
-  - GitHub `5xx` → API `503`
-  - Network/request failures → API `503`
-  - Invalid GitHub PAT → API `401`
+## Project Structure
 
-- GitHub API authentication using a Personal Access Token (PAT)
-- Environment-based configuration using Pydantic Settings
-- Service-layer unit testing with Pytest
-- Fake GitHub client dependencies for isolated service testing
-- 9 service-layer tests passing
-
----
-
-# Tech Stack
-
-- Python
-- FastAPI
-- Requests
-- Pydantic
-- Pydantic Settings
-- Pytest
-- GitHub REST API
-
----
-
-# Project Structure
-
-```text
+```
 github-profile-api/
 ├── main.py
-├── github_service.py
 ├── github_client.py
-├── settings.py
+├── github_service.py
 ├── models.py
 ├── enums.py
+├── settings.py
 ├── tests/
+│   ├── test_github_client.py
 │   └── test_github_service.py
 ├── README.md
 ├── PROJECT_STATE.md
-├── requirements.txt
-└── .gitignore
+└── requirements.txt
 ```
 
----
+## Installation
 
-# Architecture
-
-```text
-Client
-    ↓
-FastAPI Routes
-    ↓
-Request Validation
-    ↓
-Dependency Injection
-    ↓
-Service Layer
-    ↓
-GitHubClient
-    ↓
-GitHub REST API
-    ↓
-GitHubClientError
-    ↓
-GitHubServiceError
-    ↓
-Centralized FastAPI Exception Handler
-    ↓
-HTTP Response
-```
-
-### Responsibilities
-
-**main.py**
-
-- Defines API routes
-- Validates client input
-- Handles HTTP requests
-- Uses FastAPI Dependency Injection
-- Registers centralized exception handlers
-- Calls the service layer
-
-**github_service.py**
-
-- Application/business logic
-- Fetches GitHub profile data
-- Fetches repositories
-- Repository filtering
-- Repository sorting
-- Repository ordering
-- Repository pagination
-- GitHub API pagination logic
-- Statistics calculation
-- Data transformation
-- Translates `GitHubClientError` into `GitHubServiceError`
-
-**github_client.py**
-
-- Handles communication with the GitHub REST API
-- Builds GitHub API requests
-- Handles authentication headers
-- Handles request timeouts
-- Handles GitHub HTTP errors
-- Handles network/request failures
-- Raises `GitHubClientError`
-
-**models.py**
-
-- Pydantic response models
-
-**enums.py**
-
-- Shared enums for validated query parameters
-
-**settings.py**
-
-- Loads application configuration from environment variables
-- Loads local development variables from `.env`
-- Provides centralized access to GitHub API configuration
-- Stores the GitHub API URL and Personal Access Token configuration
-
----
-
-# Installation
+Clone the repository:
 
 ```bash
 git clone https://github.com/Dhruv06000/github-profile-api.git
-
 cd github-profile-api
-
-python -m venv .venv
 ```
 
-### Windows
+Create and activate a virtual environment:
+
+**Windows**
 
 ```bash
-.venv\Scripts\activate
+python -m venv venv
+venv\Scripts\activate
 ```
 
-### Linux / macOS
+**Linux / macOS**
 
 ```bash
-source .venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 ```
 
 Install dependencies:
@@ -193,200 +95,196 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Run the server:
+## Configuration
 
-```bash
-fastapi dev main.py
-```
+Configuration is loaded from a `.env` file via Pydantic Settings (`settings.py`).
 
-or
-
-```bash
-uvicorn main:app --reload
-```
-
----
-
-# Configuration
-
-The application uses Pydantic Settings for configuration management.
-
-For local development, create a `.env` file in the project root:
+Create a `.env` file in the project root:
 
 ```env
 GITHUB_TOKEN=your_github_personal_access_token
 GITHUB_API_URL=https://api.github.com
 ```
 
----
+- `GITHUB_TOKEN` — **Required.** A GitHub Personal Access Token used to authenticate requests to the GitHub API.
+- `GITHUB_API_URL` — Optional. Defaults to `https://api.github.com`.
 
-# Testing
+Secrets must never be hardcoded or committed to version control. Keep `.env` out of Git.
 
-The project uses **Pytest** for automated testing.
+## Running the API
 
-The service layer is tested independently from the real GitHub API by using fake GitHub client implementations.
-
-Current coverage includes:
-
-- Profile success response
-- Profile `404` handling
-- Profile `500` handling
-- Profile network-error handling
-- Repository success response
-- GitHub API pagination
-- Repository `404` handling
-- Repository `500` handling
-- Repository other-status handling
-
-Current test status:
-
-````text
-9 service-layer tests passing
-
-# API Documentation
-
-Swagger UI
-
-```text
-http://127.0.0.1:8000/docs
-````
-
-ReDoc
-
-```text
-http://127.0.0.1:8000/redoc
+```bash
+uvicorn main:app --reload
 ```
 
----
+The API will be available at `http://127.0.0.1:8000`.
 
-# Endpoints
+Interactive API documentation is auto-generated by FastAPI:
 
-## GET /
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- ReDoc: `http://127.0.0.1:8000/redoc`
 
-Returns a welcome message.
+## API Reference
 
----
+### `GET /`
 
-## GET /profile/{username}
+Health/root check.
 
-Returns:
-
-- GitHub profile
-- Repository statistics
-
----
-
-## GET /profile/{username}/repositories
-
-Supports filtering, sorting, ordering, and pagination.
-
-### Query Parameters
-
-| Parameter  | Description                           |
-| ---------- | ------------------------------------- |
-| language   | Filter by language                    |
-| page       | Page number (>=1, default: 1)         |
-| per_page   | Results per page (1-100, default: 30) |
-| visibility | Filter by visibility                  |
-| sort       | name, stars, forks, updated           |
-| order      | asc, desc                             |
-
-### Example Requests
-
-```http
-GET /profile/octocat/repositories
-
-GET /profile/octocat/repositories?language=Python
-
-GET /profile/octocat/repositories?sort=stars
-
-GET /profile/octocat/repositories?sort=stars&order=desc
-
-GET /profile/octocat/repositories?language=Python&sort=forks&order=desc
-
-GET /profile/octocat/repositories?page=2
-
-GET /profile/octocat/repositories?per_page=5
-
-GET /profile/octocat/repositories?page=2&per_page=10
-
-GET /profile/octocat/repositories?language=Python&page=1&per_page=5
-```
-
----
-
-# Design Decisions
-
-- Application configuration is centralized using Pydantic Settings.
-- GitHub credentials are stored in environment variables rather than hardcoded in source code.
-- FastAPI routes handle validation and HTTP concerns
-- GitHub-specific failures are translated into application-level `GitHubServiceError` exceptions.
-- FastAPI handles `GitHubServiceError` through one centralized exception handler.
-- Filtering is applied before sorting.
-- Sorting uses Python's stable `sorted()` function.
-- Pagination is applied after filtering and sorting to ensure consistent results.
-- Pagination happens before creating `RepositoryResponse` objects.
-- Response models expose only required fields.
-- Enum validation automatically rejects invalid sort and order values with HTTP 422.
-- Network failures are returned as HTTP 503 responses.
-- External GitHub API communication is isolated inside `GitHubClient`.
-- `GitHubClientError` represents GitHub client-level failures.
-- `GitHubServiceError` represents application-level service failures.
-- FastAPI Dependency Injection provides the `GitHubClient` to API routes.
-- Dependencies can be replaced during testing to avoid real GitHub API requests.
-
----
-
-# Manual API Testing
-
-Successfully tested:
-
-- Profile endpoint
-- Repository endpoint
-- Language filtering
-- Visibility filtering
-- Sorting by name
-- Sorting by stars
-- Sorting by forks
-- Sorting by updated date
-- Ascending and descending order
-- Invalid enum values (HTTP 422)
-- Combined filtering and sorting
-- Pagination (`page`)
-- Pagination (`per_page`)
-- Combined filtering, sorting, and pagination
-- Nonexistent GitHub user (HTTP 404)
-- Centralized GitHub error handling
-- Network/service failure handling
-- GitHub API authentication with a valid PAT (HTTP 200)
-- Invalid GitHub PAT handling (HTTP 401)
-- GitHubClient integration with the service layer
-- Dependency Injection through FastAPI
-
-Example error response:
+**Example response:**
 
 ```json
-{
-  "detail": "GitHub user not found"
-}
+{ "Message": "GitHub Profile Explorer API" }
 ```
 
----
+### `GET /profile/{user_name}`
 
-# Future Improvements
+Fetches a GitHub user's profile along with repository statistics (total stars, languages used, most-used language).
+
+| Parameter   | Type   | Location | Description                |
+| ----------- | ------ | -------- | -------------------------- |
+| `user_name` | string | path     | GitHub username to look up |
+
+**Response model:** `GitHubUserDashboardResponse` (`profile` + `statistics`)
+
+**Example:**
+
+```
+GET /profile/octocat
+```
+
+### `GET /profile/{user_name}/repositories`
+
+Fetches a GitHub user's public repositories, with filtering, sorting, and pagination.
+
+| Parameter    | Type   | Location | Description                                                  |
+| ------------ | ------ | -------- | ------------------------------------------------------------ |
+| `user_name`  | string | path     | GitHub username to look up                                   |
+| `page`       | int    | query    | Page number (≥ 1, default `1`)                               |
+| `per_page`   | int    | query    | Results per page (1–100, default `30`)                       |
+| `language`   | string | query    | Filter repositories by programming language                  |
+| `visibility` | string | query    | Filter repositories by visibility (e.g. `public`, `private`) |
+| `sort`       | enum   | query    | `name`, `stars`, `forks`, or `updated`                       |
+| `order`      | enum   | query    | `asc` or `desc`                                              |
+
+**Response model:** `list[RepositoryResponse]`
+
+**Example:**
+
+```
+GET /profile/octocat/repositories?language=python&sort=stars&order=desc&page=1&per_page=10
+```
+
+## Error Handling
+
+Errors propagate through a layered translation chain:
+
+```
+GitHub HTTP Error
+      ↓
+GitHubClientError
+      ↓
+GitHubServiceError
+      ↓
+FastAPI Exception Handler
+      ↓
+HTTP Response
+```
+
+Verified behavior:
+
+| Condition                     | HTTP Status                                          |
+| ----------------------------- | ---------------------------------------------------- |
+| GitHub user not found (`404`) | `404`                                                |
+| GitHub server error (`5xx`)   | `503`                                                |
+| Network/timeout failure       | `503`                                                |
+| Other GitHub client errors    | Passed through with original status code and message |
+
+A centralized `@app.exception_handler(GitHubServiceError)` in `main.py` converts service-layer errors into a JSON error response (`{"detail": <message>}`).
+
+## Testing
+
+Tests use **Pytest**, with mocked HTTP calls (`unittest.mock`, `monkeypatch`) so no real network requests are made.
+
+**Coverage:**
+
+- `test_github_client.py` — successful request, `404` error, `500` error, network/connection error, timeout error (verifies request method, URL, headers, params, and timeout).
+- `test_github_service.py` — profile fetch success and error cases (`404`, `500`, network error), repository fetch success, GitHub API pagination across multiple pages, and repository error cases (`404`, `500`, other status codes).
+
+**Run the test suite:**
+
+```bash
+python -m pytest -v
+```
+
+**Current result:**
+
+```
+GitHubClient:  5 passed
+GitHubService: 9 passed
+Total:         14/14 passed
+```
+
+FastAPI endpoint/integration tests are not yet implemented — this is the current next milestone.
+
+## Design Decisions
+
+- **Layered architecture** — routing, business logic, and external HTTP communication are kept in separate layers (`main.py` → `github_service.py` → `github_client.py`).
+- **Dedicated `GitHubClient`** — isolates all direct communication with the GitHub API (auth headers, timeouts, error handling) from application logic.
+- **Dependency Injection** — `GitHubClient` is provided to routes via `Depends(get_github_client)`, keeping construction out of endpoint logic and making it replaceable in tests.
+- **Centralized exception handling** — a single FastAPI exception handler converts `GitHubServiceError` into consistent HTTP responses.
+- **Two-stage pagination** — GitHub API pagination (fetching all pages internally) is separated from application-level pagination (applied after filtering/sorting, per the client's `page`/`per_page` request).
+- **Environment-based configuration** — GitHub token and API URL are loaded via Pydantic Settings from a `.env` file, never hardcoded.
+- **Unit testing with mocks/fakes** — `GitHubClient` is tested with mocked `requests` calls; the service layer is tested with fake client implementations, keeping tests independent of the real GitHub API.
+
+## Current Status
+
+**Implemented**
+
+- GitHub user profile retrieval
+- Repository retrieval with GitHub API pagination
+- Repository filtering (language, visibility)
+- Repository sorting (name, stars, forks, updated) with ascending/descending order
+- Application-level pagination
+- Repository statistics (total stars, languages used, most-used language)
+- FastAPI request validation and Pydantic response models
+- FastAPI Dependency Injection
+- Centralized GitHub/service error handling
+- GitHub Personal Access Token authentication
+- Environment-based configuration
+
+**Tested**
+
+- `GitHubClient`: 5/5 tests passing
+- `GitHubService`: 9/9 tests passing
+- Full suite: 14/14 tests passing
+
+**Next**
+
+- FastAPI endpoint/API testing (`TestClient`, dependency overrides)
+
+**Not Yet Complete**
+
+- Deployment (the project has not been deployed)
+- Logging, caching, Docker, CI/CD
+
+## Next Steps
+
+1. Add FastAPI endpoint/integration tests using `TestClient`
+2. Review production configuration
+3. Deploy the API
+4. Verify the deployed API
+
+## Future Improvements
 
 - Response metadata
 - Logging
 - Caching
-- GitHubClient unit testing
-- FastAPI integration/API testing
-- Clean project structure
 - Docker
 - CI/CD
-- Production-quality API documentation
-- Deployment to Render
 
----
+## Learning Goals
+
+This project is also being used as a practical backend-learning exercise, covering FastAPI, REST API design, Dependency Injection, Pydantic, layered architecture, external API integration, exception handling, unit testing, mocking, API testing, and deployment.
 
 # License
 

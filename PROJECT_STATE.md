@@ -2,6 +2,19 @@
 
 ## Current Status
 
+The GitHubClient and GitHubService layers are implemented and tested.
+
+Current test status:
+
+- GitHubClient: 5 tests passing
+- GitHubService: 9 tests passing
+- Full test suite: 14/14 tests passing
+
+Current milestone:
+FastAPI endpoint/API testing.
+
+The next major goal after API testing is to prepare and deploy this project as my first live FastAPI project.
+
 ### Project
 
 **GitHub Profile API**
@@ -98,6 +111,13 @@ GitHub API
 - [x] Service-layer unit testing with Pytest
 - [x] Fake GitHub clients for service testing
 - [x] 9 service-layer tests passing
+- [x] GitHubClient unit testing with Pytest
+- [x] Successful GitHubClient request test
+- [x] GitHubClient 404 error test
+- [x] GitHubClient 500 error test
+- [x] GitHubClient network error test
+- [x] GitHubClient timeout test
+- [x] Mocked HTTP requests for GitHubClient testing
 
 ---
 
@@ -352,40 +372,23 @@ Current result:
 9 service-layer tests passing
 ```
 
-## Important Testing Distinction
+## GitHubClient Unit Testing
 
-The current tests are **service-layer unit tests**.
+GitHubClient is now tested independently from the real GitHub API using mocked HTTP requests.
 
-They are **NOT GitHubClient unit tests**.
+Current architecture:
 
-Current testing:
-
-```text
-Test
-   ↓
-Service
-   ↓
-Fake GitHubClient
-```
-
-Next GitHubClient testing should be:
-
-```text
-Test
+````text
+Pytest
    ↓
 GitHubClient
    ↓
-Mocked HTTP request
-```
-
-Unit tests must not call the real GitHub API.
+Mocked HTTP Request
 
 ---
 
 # Current Limitations
 
-- GitHub API rate limits still apply
-- GitHubClient unit tests are not implemented
 - FastAPI integration/API tests are not implemented
 - FastAPI Dependency Injection has not yet been tested through endpoint integration tests
 - Logging is not implemented
@@ -399,109 +402,81 @@ Unit tests must not call the real GitHub API.
 
 # Next Milestone
 
-## GitHubClient Unit Testing
+## FastAPI Integration/API Testing
 
 This is the immediate next milestone.
 
 Goals:
 
-- Understand `GitHubClient` responsibilities
-- Learn mocking
-- Mock HTTP requests
-- Avoid real GitHub API calls
+- Learn FastAPI `TestClient`
+- Test FastAPI endpoints
+- Test Dependency Injection
+- Learn dependency overrides
+- Replace the real `GitHubClient` with a fake/mock dependency during endpoint tests
 - Test successful responses
-- Test `4xx` responses
-- Test `5xx` responses
-- Test invalid authentication
-- Test network/request failures
-- Test timeout behavior
-- Verify `GitHubClientError`
-- Verify request URL
-- Verify HTTP method
-- Verify headers
-- Verify query parameters
-- Verify timeout configuration
-- Keep tests deterministic
+- Test query validation
+- Test `404` responses
+- Test `503` responses
+- Test response models
+- Test repository filtering
+- Test repository sorting
+- Test pagination
+- Verify endpoint behavior without calling the real GitHub API
 
 Expected architecture:
 
 ```text
 Pytest
    ↓
-GitHubClient
-   ↓
-Mocked HTTP Request
-```
-
-Do not use:
-
-```text
-Pytest
-   ↓
-GitHubClient
-   ↓
-Real GitHub API
-```
-
----
-
-# After GitHubClient Testing
-
-The next milestone will be:
-
-## FastAPI Integration/API Testing
-
-Expected flow:
-
-```text
-HTTP Request
+FastAPI TestClient
    ↓
 FastAPI Route
    ↓
-Validation
-   ↓
-Dependency Injection
+Dependency Override
    ↓
 Service
    ↓
-GitHubClient
-   ↓
-Mocked External API
-   ↓
-HTTP Response
-```
-
-Topics:
-
-- FastAPI `TestClient`
-- Dependency overrides
-- Endpoint testing
-- Query validation testing
-- Error response testing
-- Response model testing
-- Dependency Injection testing
-- Mocking external services
-
-Real GitHub API requests should not be used in automated tests.
+Fake/Mock GitHubClient
 
 ---
+# After FastAPI API Testing
 
+Once the FastAPI endpoint tests are complete, the project will move into deployment preparation.
+
+The flow will be:
+
+```text
+FastAPI API Testing
+        ↓
+Full Test Suite Passing
+        ↓
+README / Documentation Review
+        ↓
+Production Configuration Review
+        ↓
+Deployment
+        ↓
+Test Live API
+
+---
 # Future Roadmap
 
 Follow this incrementally:
 
-1. GitHubClient unit testing
-2. FastAPI integration/API testing
-3. Clean project structure
-4. Response metadata
-5. Logging
-6. Caching
-7. Docker
-8. CI/CD
-9. Production-quality API documentation
-10. Deployment to Render
+1. FastAPI integration/API testing
+2. Clean project structure
+3. Response metadata
+4. Production configuration review
+5. Deployment to Render
+6. Verify and test the live API
+7. Logging
+8. Caching
+9. Docker
+10. CI/CD
 
 Do not implement future infrastructure prematurely.
+
+The first deployment is prioritized before optional infrastructure such as Docker and CI/CD.
 
 ---
 
@@ -681,9 +656,44 @@ GitHub API
 
 Session 6 was **service-layer unit testing using fake GitHub clients**.
 
-It was **not GitHubClient unit testing**.
+## Session 7 — GitHubClient Unit Testing
 
-GitHubClient unit testing is the next milestone.
+### Implemented
+
+- Mocked `requests.request()`
+- Tested successful GitHubClient requests
+- Tested GitHub `404` HTTP errors
+- Tested GitHub `500` HTTP errors
+- Tested network/request errors
+- Tested timeout errors
+- Verified request URL
+- Verified HTTP method
+- Verified headers
+- Verified query parameters
+- Verified timeout configuration
+
+### Result
+
+```text
+GitHubClient: 5/5 tests passing
+GitHubService: 9/9 tests passing
+Full test suite: 14/14 tests passing
+
+### Learned
+- unittest.mock.Mock
+- return_value
+- side_effect
+- monkeypatch.setattr()
+- pytest.raises()
+- exc_info.value
+- Mocking external HTTP requests
+- Fake HTTP response objects
+- HTTPError.response
+- HTTP error handling
+- Network error handling
+- Timeout testing
+- Verifying mocked function calls
+- Mock.assert_called_once_with()
 
 ---
 
@@ -732,7 +742,10 @@ Current state:
 - GitHub API requests use the PAT loaded through Pydantic Settings.
 - Service logic is separated from external HTTP communication.
 - Service-layer tests are passing.
-- GitHubClient unit testing is the next task.
+- GitHubClient unit tests are passing.
+- Full test suite has 14/14 tests passing.
+- FastAPI endpoint/API testing is the next task.
+- Deployment has not started yet.
 
 ---
 
@@ -771,3 +784,4 @@ The goal is to understand software engineering principles, not memorize syntax.
 Avoid unnecessary architecture or technologies simply because they are common in production projects.
 
 Always prefer incremental improvements that solve real problems.
+````
