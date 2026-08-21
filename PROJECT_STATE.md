@@ -2,18 +2,19 @@
 
 ## Current Status
 
-The GitHubClient and GitHubService layers are implemented and tested.
+The GitHubClient, GitHubService, and FastAPI endpoint layers are implemented and tested.
 
 Current test status:
 
 - GitHubClient: 5 tests passing
 - GitHubService: 9 tests passing
-- Full test suite: 14/14 tests passing
+- FastAPI endpoints (TestClient): 16 tests passing
+- Full test suite: 30/30 tests passing
 
 Current milestone:
-FastAPI endpoint/API testing.
+Clean project structure.
 
-The next major goal after API testing is to prepare and deploy this project as my first live FastAPI project.
+The next major goal after that is Response Metadata, followed by production configuration review and deployment.
 
 ### Project
 
@@ -118,6 +119,17 @@ GitHub API
 - [x] GitHubClient network error test
 - [x] GitHubClient timeout test
 - [x] Mocked HTTP requests for GitHubClient testing
+- [x] FastAPI endpoint/integration testing with `TestClient`
+- [x] Dependency override testing (`app.dependency_overrides`)
+- [x] Endpoint-level 404 verification (profile not found)
+- [x] Endpoint-level 503 verification (GitHub 5xx and network error paths)
+- [x] Repository filtering tested through the API layer
+- [x] Repository visibility filtering tested through the API layer
+- [x] Repository sorting (asc/desc) tested through the API layer
+- [x] Repository pagination (first page, second page) tested through the API layer
+- [x] Combined filter+pagination and sort+pagination tested through the API layer
+- [x] Query validation tested through the API layer (422 for invalid `page`/`per_page`)
+- [x] 16 FastAPI endpoint tests passing
 
 ---
 
@@ -262,6 +274,8 @@ The goal is to keep:
 - Application error translation inside the service layer
 - HTTP response handling inside FastAPI
 
+**Note on 5xx vs. network errors:** `GitHubServiceError` currently carries only a `status_code` and `message` — there is no field distinguishing "GitHub responded with a 5xx" from "the request itself failed before GitHub responded." Both collapse to API `503` by design. `test_profile_github_service_unavailable` and `test_profile_github_network_error` are therefore two regression guards over the same collapsed code path (different failure origins, same observable behavior), not two distinct branches. This is an intentional simplification for now, not an oversight — revisit if a future need arises to alert/log differently on the two origins.
+
 ---
 
 # Configuration & Authentication
@@ -340,7 +354,7 @@ Every abstraction should solve an actual problem.
 
 # Testing Status
 
-## Current Testing
+## Service Layer Testing
 
 The service layer has unit tests using fake GitHub clients.
 
@@ -374,56 +388,29 @@ Current result:
 
 ## GitHubClient Unit Testing
 
-GitHubClient is now tested independently from the real GitHub API using mocked HTTP requests.
+GitHubClient is tested independently from the real GitHub API using mocked HTTP requests.
 
 Current architecture:
 
-````text
+```text
 Pytest
    ↓
 GitHubClient
    ↓
 Mocked HTTP Request
+```
 
----
+Current result:
 
-# Current Limitations
+```text
+5 GitHubClient tests passing
+```
 
-- FastAPI integration/API tests are not implemented
-- FastAPI Dependency Injection has not yet been tested through endpoint integration tests
-- Logging is not implemented
-- Caching is not implemented
-- Production secret management is not implemented
-- Docker is not implemented
-- CI/CD is not implemented
-- Production deployment is not implemented
+## FastAPI Endpoint/Integration Testing
 
----
+The FastAPI layer is now tested end-to-end using `TestClient`, with the real `GitHubClient` replaced by fakes through `app.dependency_overrides`.
 
-# Next Milestone
-
-## FastAPI Integration/API Testing
-
-This is the immediate next milestone.
-
-Goals:
-
-- Learn FastAPI `TestClient`
-- Test FastAPI endpoints
-- Test Dependency Injection
-- Learn dependency overrides
-- Replace the real `GitHubClient` with a fake/mock dependency during endpoint tests
-- Test successful responses
-- Test query validation
-- Test `404` responses
-- Test `503` responses
-- Test response models
-- Test repository filtering
-- Test repository sorting
-- Test pagination
-- Verify endpoint behavior without calling the real GitHub API
-
-Expected architecture:
+Current architecture:
 
 ```text
 Pytest
@@ -436,35 +423,102 @@ Dependency Override
    ↓
 Service
    ↓
-Fake/Mock GitHubClient
+Fake GitHubClient
+```
 
----
-# After FastAPI API Testing
+Tests currently cover:
 
-Once the FastAPI endpoint tests are complete, the project will move into deployment preparation.
+- Root endpoint (`GET /`)
+- Profile success
+- Profile `404`
+- Profile `503` (GitHub 5xx)
+- Profile `503` (network error)
+- Repository success
+- Repository language filtering
+- Repository visibility filtering
+- Repository sorting (asc, desc)
+- Repository pagination (first page, second page)
+- Repository filter + pagination combined
+- Repository sort + pagination combined
+- Invalid `page` → `422`
+- Invalid `per_page` → `422`
 
-The flow will be:
+Each test uses a pytest fixture that applies `app.dependency_overrides[get_github_client]` and clears it on teardown, so overrides from one test never leak into another.
+
+Current result:
 
 ```text
-FastAPI API Testing
+16 FastAPI endpoint tests passing
+```
+
+## Full Suite
+
+```text
+GitHubClient:   5 passed
+GitHubService:  9 passed
+FastAPI (API): 16 passed
+Total:         30/30 passed
+```
+
+---
+
+# Current Limitations
+
+- Logging is not implemented
+- Caching is not implemented
+- Production secret management is not implemented
+- Docker is not implemented
+- CI/CD is not implemented
+- Production deployment is not implemented
+- `GitHubServiceError` does not distinguish GitHub 5xx from network/request failures (both map to `503` by design — see note under Error Handling)
+
+---
+
+# Next Milestone
+
+## Clean Project Structure
+
+This is the immediate next milestone.
+
+Goals:
+
+- Review current file/folder organization against typical FastAPI project layouts
+- Decide whether routes, services, and clients should be grouped into packages (e.g. `app/`, `routers/`) or remain flat, and justify the choice rather than restructuring for its own sake
+- Ensure test files mirror source structure clearly
+- Keep `requirements.txt` accurate and minimal
+- Confirm `.env` / secrets are properly excluded from version control
+- Do not introduce structure that isn't earning its complexity yet (e.g. no premature package-per-layer split if the project doesn't need it)
+
+Expected outcome:
+
+A project layout that is easy for a new reader (or interviewer) to navigate, with no leftover clutter from earlier sessions.
+
+---
+
+# After Clean Project Structure
+
+Once project structure is reviewed, the project moves to Response Metadata, then production configuration review, then deployment.
+
+```text
+Clean Project Structure
         ↓
-Full Test Suite Passing
-        ↓
-README / Documentation Review
+Response Metadata
         ↓
 Production Configuration Review
         ↓
 Deployment
         ↓
 Test Live API
+```
 
 ---
+
 # Future Roadmap
 
 Follow this incrementally:
 
-1. FastAPI integration/API testing
-2. Clean project structure
+1. ~~FastAPI integration/API testing~~ ✅ Completed (Session 8)
+2. Clean project structure ← current milestone
 3. Response metadata
 4. Production configuration review
 5. Deployment to Render
@@ -656,6 +710,8 @@ GitHub API
 
 Session 6 was **service-layer unit testing using fake GitHub clients**.
 
+---
+
 ## Session 7 — GitHubClient Unit Testing
 
 ### Implemented
@@ -678,8 +734,10 @@ Session 6 was **service-layer unit testing using fake GitHub clients**.
 GitHubClient: 5/5 tests passing
 GitHubService: 9/9 tests passing
 Full test suite: 14/14 tests passing
+```
 
 ### Learned
+
 - unittest.mock.Mock
 - return_value
 - side_effect
@@ -694,6 +752,46 @@ Full test suite: 14/14 tests passing
 - Timeout testing
 - Verifying mocked function calls
 - Mock.assert_called_once_with()
+
+---
+
+## Session 8 — FastAPI Endpoint/Integration Testing
+
+### Implemented
+
+- FastAPI `TestClient` setup (`tests/test_api.py`)
+- Dependency override fixtures (`app.dependency_overrides[get_github_client]`, cleared via `yield` teardown)
+- Fake GitHub clients dedicated to endpoint-level testing (success, 404, 500, network error)
+- Root endpoint test
+- Profile endpoint success test
+- Profile endpoint `404` / `503` (5xx) / `503` (network error) tests
+- Repository endpoint success test
+- Repository language filter test
+- Repository visibility filter test
+- Repository sort tests (asc, desc)
+- Repository pagination tests (first page, second page)
+- Combined filter+pagination test
+- Combined sort+pagination test
+- Invalid `page`/`per_page` validation tests (`422`)
+
+### Result
+
+```text
+GitHubClient:   5/5 tests passing
+GitHubService:  9/9 tests passing
+FastAPI (API): 16/16 tests passing
+Full test suite: 30/30 tests passing
+```
+
+### Learned
+
+- FastAPI `TestClient`
+- Testing endpoints without calling the real GitHub API
+- `app.dependency_overrides` and why it must be cleared per-test to avoid cross-test leakage
+- Writing fixtures with `yield` for setup/teardown
+- Testing query validation at the FastAPI boundary (`422` responses)
+- Testing combinatorial query parameter behavior (filter+pagination, sort+pagination), not just isolated cases
+- That `GitHubServiceError`'s flat `status_code`/`message` shape means distinct failure origins (5xx vs. network error) can legitimately collapse into the same HTTP response and the same test outcome — and how to recognize when that's a deliberate simplification vs. redundant test coverage
 
 ---
 
@@ -743,8 +841,9 @@ Current state:
 - Service logic is separated from external HTTP communication.
 - Service-layer tests are passing.
 - GitHubClient unit tests are passing.
-- Full test suite has 14/14 tests passing.
-- FastAPI endpoint/API testing is the next task.
+- FastAPI endpoint tests are passing, including dependency overrides, filtering, sorting, pagination, and validation boundaries.
+- Full test suite has 30/30 tests passing.
+- Clean project structure is the next task.
 - Deployment has not started yet.
 
 ---
@@ -784,4 +883,3 @@ The goal is to understand software engineering principles, not memorize syntax.
 Avoid unnecessary architecture or technologies simply because they are common in production projects.
 
 Always prefer incremental improvements that solve real problems.
-````

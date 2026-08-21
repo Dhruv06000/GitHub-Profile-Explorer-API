@@ -8,16 +8,17 @@ GitHub Profile Explorer API retrieves a GitHub user's profile and public reposit
 
 ## Tech Stack
 
-| Technology        | Purpose                                  |
-| ----------------- | ---------------------------------------- |
-| Python            | Core language                            |
-| FastAPI           | Web framework / routing                  |
-| Requests          | HTTP client for GitHub API communication |
-| Pydantic          | Request/response data models             |
-| Pydantic Settings | Environment-based configuration          |
-| Pytest            | Automated testing                        |
-| unittest.mock     | Mocking HTTP requests in tests           |
-| GitHub REST API   | External data source                     |
+| Technology         | Purpose                                  |
+| ------------------ | ---------------------------------------- |
+| Python             | Core language                            |
+| FastAPI            | Web framework / routing                  |
+| Requests           | HTTP client for GitHub API communication |
+| Pydantic           | Request/response data models             |
+| Pydantic Settings  | Environment-based configuration          |
+| Pytest             | Automated testing                        |
+| unittest.mock      | Mocking HTTP requests in tests           |
+| FastAPI TestClient | Endpoint/integration testing             |
+| GitHub REST API    | External data source                     |
 
 ## Architecture
 
@@ -58,11 +59,14 @@ github-profile-api/
 ├── settings.py
 ├── tests/
 │   ├── test_github_client.py
-│   └── test_github_service.py
+│   ├── test_github_service.py
+│   └── test_api.py
 ├── README.md
 ├── PROJECT_STATE.md
 └── requirements.txt
 ```
+
+> Note: this layout is under review as part of the current "Clean Project Structure" milestone — see `PROJECT_STATE.md` for details.
 
 ## Installation
 
@@ -201,14 +205,24 @@ Verified behavior:
 
 A centralized `@app.exception_handler(GitHubServiceError)` in `main.py` converts service-layer errors into a JSON error response (`{"detail": <message>}`).
 
+`GitHubServiceError` carries only a `status_code` and `message`, so a GitHub 5xx and a network/timeout failure are not distinguished once they reach the handler — both resolve to API `503` by design.
+
 ## Testing
 
-Tests use **Pytest**, with mocked HTTP calls (`unittest.mock`, `monkeypatch`) so no real network requests are made.
+Tests use **Pytest**, with mocked HTTP calls (`unittest.mock`, `monkeypatch`) and FastAPI's `TestClient` so no real network requests are made.
 
 **Coverage:**
 
 - `test_github_client.py` — successful request, `404` error, `500` error, network/connection error, timeout error (verifies request method, URL, headers, params, and timeout).
 - `test_github_service.py` — profile fetch success and error cases (`404`, `500`, network error), repository fetch success, GitHub API pagination across multiple pages, and repository error cases (`404`, `500`, other status codes).
+- `test_api.py` — full endpoint-level testing using `TestClient` with `GitHubClient` replaced via `app.dependency_overrides`:
+  - Root endpoint
+  - Profile success, `404`, `503` (GitHub 5xx), `503` (network error)
+  - Repository success, language filter, visibility filter
+  - Repository sorting (asc, desc)
+  - Repository pagination (first page, second page)
+  - Combined filter + pagination, combined sort + pagination
+  - Query validation (`422` for invalid `page`/`per_page`)
 
 **Run the test suite:**
 
@@ -219,12 +233,11 @@ python -m pytest -v
 **Current result:**
 
 ```
-GitHubClient:  5 passed
-GitHubService: 9 passed
-Total:         14/14 passed
+GitHubClient:   5 passed
+GitHubService:  9 passed
+FastAPI (API): 16 passed
+Total:         30/30 passed
 ```
-
-FastAPI endpoint/integration tests are not yet implemented — this is the current next milestone.
 
 ## Design Decisions
 
@@ -234,7 +247,7 @@ FastAPI endpoint/integration tests are not yet implemented — this is the curre
 - **Centralized exception handling** — a single FastAPI exception handler converts `GitHubServiceError` into consistent HTTP responses.
 - **Two-stage pagination** — GitHub API pagination (fetching all pages internally) is separated from application-level pagination (applied after filtering/sorting, per the client's `page`/`per_page` request).
 - **Environment-based configuration** — GitHub token and API URL are loaded via Pydantic Settings from a `.env` file, never hardcoded.
-- **Unit testing with mocks/fakes** — `GitHubClient` is tested with mocked `requests` calls; the service layer is tested with fake client implementations, keeping tests independent of the real GitHub API.
+- **Unit testing with mocks/fakes** — `GitHubClient` is tested with mocked `requests` calls; the service layer is tested with fake client implementations; the FastAPI layer is tested end-to-end with `TestClient` and dependency overrides — keeping every layer's tests independent of the real GitHub API.
 
 ## Current Status
 
@@ -251,16 +264,18 @@ FastAPI endpoint/integration tests are not yet implemented — this is the curre
 - Centralized GitHub/service error handling
 - GitHub Personal Access Token authentication
 - Environment-based configuration
+- FastAPI endpoint/integration testing with dependency overrides
 
 **Tested**
 
 - `GitHubClient`: 5/5 tests passing
 - `GitHubService`: 9/9 tests passing
-- Full suite: 14/14 tests passing
+- FastAPI endpoints: 16/16 tests passing
+- Full suite: 30/30 tests passing
 
 **Next**
 
-- FastAPI endpoint/API testing (`TestClient`, dependency overrides)
+- Clean project structure review
 
 **Not Yet Complete**
 
@@ -269,10 +284,11 @@ FastAPI endpoint/integration tests are not yet implemented — this is the curre
 
 ## Next Steps
 
-1. Add FastAPI endpoint/integration tests using `TestClient`
-2. Review production configuration
-3. Deploy the API
-4. Verify the deployed API
+1. Review and clean up project structure
+2. Add response metadata
+3. Review production configuration
+4. Deploy the API
+5. Verify the deployed API
 
 ## Future Improvements
 
